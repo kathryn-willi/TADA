@@ -314,7 +314,7 @@ fetchATTAINS <- function(.data, catchments_only = FALSE) {
   }
 
   # FOR AOIs THAT ARE GREATER THAN 6,000 sqkm, split into "clusters":
-  if (as.numeric(sf::st_area(sf::st_as_sfc(.data %>% sf::st_bbox(.)))) >= 6e+9) {
+  if (as.numeric(sf::st_area(sf::st_as_sfc(.data %>% sf::st_buffer(0.00020) %>% sf::st_bbox(.)))) >= 6e+9) {
     # For user-specified AOIs with a large spatial range, create "clusters" of sites
     # whose bounding boxes are smaller.
     perform_iterative_clustering <- function(points_sf, min_area = 6e+9, max_iterations = 100) {
@@ -450,7 +450,7 @@ fetchATTAINS <- function(.data, catchments_only = FALSE) {
     }
 
     # grab all unique points
-    points_sf <- dplyr::distinct(.data, geometry)
+    points_sf <- dplyr::distinct(.data, geometry) 
 
     # grab initial clusters
     init <- perform_iterative_clustering(points_sf = points_sf) %>%
@@ -472,6 +472,7 @@ fetchATTAINS <- function(.data, catchments_only = FALSE) {
       suppressMessages(suppressWarnings({
         bbox <- final_cluster_list %>%
           dplyr::filter(cluster == unique(final_cluster_list$cluster)[i]) %>%
+          sf::st_buffer(0.00020) %>%
           sf::st_bbox(.) %>%
           toString(.) %>%
           urltools::url_encode(.)
@@ -487,7 +488,7 @@ fetchATTAINS <- function(.data, catchments_only = FALSE) {
 
     try(
       catchment_features <- catchment_features %>%
-        .[points_sf, ],
+        .[points_sf %>% sf::st_buffer(0.00020), ],
       silent = TRUE
     )
 
@@ -549,7 +550,8 @@ fetchATTAINS <- function(.data, catchments_only = FALSE) {
     # If area is small (< 6e+9 square meters), just use the bbox in one pull:
   } else {
     # FOR AOIs THAT ARE LESS THAN 6,000 sqkm, grab data in one go:
-    points_sf <- .data
+    points_sf <- .data %>%
+      sf::st_buffer(0.00020)
 
     bbox <- points_sf %>%
       sf::st_bbox(.) %>%
